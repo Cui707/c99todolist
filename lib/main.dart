@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:c99todolist/todo_item.dart';
+import 'dart:convert'; // 用于 JSON 编解码
+import 'package:shared_preferences/shared_preferences.dart'; // 用于数据存储
 
 void main() {
   runApp(const MyApp());
@@ -36,6 +38,74 @@ class _TodoListScreenState extends State<TodoListScreen> {
   String _currentCategory = '所有待办';
 
   final TextEditingController _categoryFieldController = TextEditingController();
+
+  late SharedPreferences _prefs; // SharedPreferences 实例
+
+    @override
+  void initState() {
+    super.initState();
+    _loadData(); // 在 State 初始化时加载数据
+  }
+
+  // 加载数据
+  Future<void> _loadData() async {
+    _prefs = await SharedPreferences.getInstance();
+
+    // 加载待办事项
+    final String? todosJsonString = _prefs.getString('todos');
+    if (todosJsonString != null) {
+      final List<dynamic> todosJsonList = jsonDecode(todosJsonString);
+      setState(() {
+        _todos.clear(); // 先清空，再加载
+        for (var jsonMap in todosJsonList) {
+          _todos.add(TodoItem.fromJson(jsonMap));
+        }
+      });
+    }
+
+    // 加载分类
+    final List<String>? categories = _prefs.getStringList('categories');
+    if (categories != null && categories.isNotEmpty) {
+      setState(() {
+        // 确保“所有待办”始终是第一个分类
+        if (categories.contains('所有待办')) {
+          _categories = categories;
+          _categories.remove('所有待办');
+          _categories.insert(0, '所有待办');
+        } else {
+          _categories = ['所有待办', ...categories]; // 如果没有，则添加
+        }
+        // 确保当前选中分类在加载的分类列表中，否则默认为“所有待办”
+        if (!_categories.contains(_currentCategory)) {
+            _currentCategory = '所有待办';
+        }
+      });
+    } else {
+      // 如果没有保存任何分类，则只保留“所有待办”和“未分类”（如果有待办属于它）
+      setState(() {
+        _categories = ['所有待办'];
+        if (_todos.any((todo) => todo.category == '未分类')) {
+            _categories.add('未分类');
+        }
+      });
+    }
+  }
+
+  // 保存数据
+  Future<void> _saveData() async {
+    // 保存待办事项
+    final List<Map<String, dynamic>> todosJsonList = _todos.map((todo) => todo.toJson()).toList();
+    await _prefs.setString('todos', jsonEncode(todosJsonList));
+
+    // 保存分类
+    // 过滤掉 '所有待办'，因为它是一个特殊分类，不应该被用户删除或重命名
+    // 并且如果 '未分类' 中没有实际的待办，也应该移除
+    List<String> categoriesToSave = _categories.where((cat) => cat != '所有待办').toList();
+    if (!_todos.any((todo) => todo.category == '未分类')) {
+      categoriesToSave.remove('未分类');
+    }
+    await _prefs.setStringList('categories', categoriesToSave);
+  }
 
   List<TodoItem> get _filteredTodos {
     if (_currentCategory == '所有待办') {
@@ -227,6 +297,7 @@ class _TodoListScreenState extends State<TodoListScreen> {
         _textFieldController.clear();
       });
       _textFieldFocusNode.requestFocus();
+      _saveData();
     }
   }
 
@@ -246,12 +317,14 @@ class _TodoListScreenState extends State<TodoListScreen> {
         _categories.insert(0, '所有待办');
       }
     });
+    _saveData();
   }
 
   void _toggleTodoStatus(int index, bool newValue) {
     setState(() {
       _filteredTodos[index].isCompleted = newValue;
     });
+    _saveData();
   }
 
   void _showAddCategoryDialog() {
@@ -299,6 +372,7 @@ class _TodoListScreenState extends State<TodoListScreen> {
         _categories.remove('所有待办');
         _categories.insert(0, '所有待办');
       });
+      _saveData();
     }
   }
 
@@ -360,6 +434,7 @@ class _TodoListScreenState extends State<TodoListScreen> {
           _currentCategory = newCategory;
         }
       });
+      _saveData();
     }
   }
 
@@ -385,6 +460,7 @@ class _TodoListScreenState extends State<TodoListScreen> {
         });
       }
     });
+    _saveData();
   }
 
   void _showDeleteCategoryDialog(String categoryToDelete) {
@@ -437,6 +513,7 @@ class _TodoListScreenState extends State<TodoListScreen> {
           _categories.insert(0, '所有待办');
         }
       });
+      _saveData();
     }
   }
 
@@ -454,6 +531,7 @@ class _TodoListScreenState extends State<TodoListScreen> {
         }
       }
     });
+    _saveData();
   }
 
   // 显示待办事项上下文菜单（包含编辑和分类）
@@ -490,6 +568,7 @@ class _TodoListScreenState extends State<TodoListScreen> {
           setState(() {
             todo.category = selectedOption; // 更新待办事项的分类
           });
+          _saveData();
         }
       }
     });
@@ -544,6 +623,7 @@ class _TodoListScreenState extends State<TodoListScreen> {
       setState(() {
         todo.task = newTask; // 更新待办事项的文本内容
       });
+      _saveData();
     }
   }
 
@@ -575,6 +655,7 @@ class _TodoListScreenState extends State<TodoListScreen> {
                     _todos.removeWhere((todo) => todo.category == _currentCategory);
                   }
                 });
+                _saveData();
                 Navigator.of(context).pop();
               },
             ),
