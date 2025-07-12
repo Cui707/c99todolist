@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:c99todolist/todo_item.dart';
+import 'package:cui707todolist/todo_item.dart';
 import 'dart:convert'; // 用于 JSON 编解码
 import 'package:shared_preferences/shared_preferences.dart'; // 用于数据存储
 
@@ -13,7 +13,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'C99 Todo List App',
+      title: 'Cui707 Todo List App',
       theme: ThemeData(
         primarySwatch: Colors.grey, // 主题颜色设为灰色
       ),
@@ -127,7 +127,11 @@ class _TodoListScreenState extends State<TodoListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('我的待办事项 (${_currentCategory})'),
+        title: FittedBox( // 添加 FittedBox 包裹 Text
+          fit: BoxFit.scaleDown, // 选择缩放方式，scaleDown 会缩小文本以适应空间
+          alignment: Alignment.centerLeft, // 如果空间允许，文本会靠左对齐
+          child: Text('当前分类 (${_currentCategory})'),
+        ),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8.0),
@@ -221,6 +225,38 @@ class _TodoListScreenState extends State<TodoListScreen> {
                 _showAddCategoryDialog();
               },
             ),
+            Padding(
+              padding: const EdgeInsets.all(16.0), // 整体的内边距
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start, // 让文本左对齐
+                children: const <Widget>[
+                  Divider(), // 添加一条分割线，将个人信息与上方内容区分
+                  SizedBox(height: 10), // 留出一点垂直空间
+                  Text(
+                    '开发者-Cui707', // 你的名字或昵称
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87, // 深灰色
+                    ),
+                  ),
+                  SizedBox(height: 5), // 文本之间的间距
+                  Text(
+                    'Email：cui19991999@126.com', // 你的座右铭或应用描述
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.black54, // 浅灰色
+                    ),
+                  ),
+                  // 你可以根据需要添加更多信息，例如：
+                  SizedBox(height: 5),
+                  Text(
+                  '开源地址: https://github.com/Cui707/cui707todolist',
+                  style: TextStyle(fontSize: 12, color: Colors.blue),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -256,8 +292,11 @@ class _TodoListScreenState extends State<TodoListScreen> {
                   margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
                   color: todo.isCompleted ? Colors.grey[200] : null,
                   child: GestureDetector(
-                    onSecondaryTapDown: (details) {
-                      _showTodoContextMenu(context, details.globalPosition, todo); 
+                    onSecondaryTapDown: (details) { // 用于桌面平台的鼠标右键
+                      _showTodoContextMenu(context, details.globalPosition, todo);
+                    },
+                    onLongPressStart: (details) { // 用于移动平台的长按
+                      _showTodoContextMenu(context, details.globalPosition, todo);
                     },
                     child: ListTile(
                       leading: Checkbox(
@@ -476,9 +515,15 @@ class _TodoListScreenState extends State<TodoListScreen> {
               onPressed: () {
                 Navigator.of(context).pop();
               },
+              style: TextButton.styleFrom( // 添加 style 属性
+                foregroundColor: Colors.black, // 将文字颜色设置为黑色
+              ),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red, // 保持背景色为红色
+                foregroundColor: Colors.black, // 将文本颜色设置为黑色
+              ),
               child: const Text('删除'),
               onPressed: () {
                 _deleteCategory(categoryToDelete);
